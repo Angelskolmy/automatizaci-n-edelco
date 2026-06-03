@@ -8,10 +8,16 @@ from time import sleep
 from selenium.common.exceptions import ElementClickInterceptedException  
 from Master_mod import ProdsSport 
 import pandas as Maker 
-import openpyxl 
-from datetime import datetime
+import openpyxl  
+import os 
+from datetime import datetime 
+from selenium.webdriver.chrome.options import Options
+from pathlib import Path 
+import shutil
+import time
 
-InDex_memo_ram=[]
+
+InDex_memo_ram={}
 
 def Malphite_Click(LinkDri, CordsDom): 
     
@@ -85,12 +91,17 @@ def Scrap_ruler(LinkDri):
 
     freeze= WebDriverWait(LinkDri,timeout=20) 
 
-    HandScrolMarts= WebDriverWait(LinkDri, timeout=3).until(
-        ExCont.presence_of_all_elements_located((By.CSS_SELECTOR,'nz-table-inner-scroll')))
-
     Rulacaze=1 
 
-    while True: 
+    while True:  
+
+        HandScrolMarts = WebDriverWait( LinkDri, timeout=10).until(
+
+        ExCont.presence_of_element_located((
+            By.CSS_SELECTOR,
+            'cdk-virtual-scroll-viewport'
+        ))
+        )
 
         print(f"Buscando indice -> {Rulacaze}")  
 
@@ -108,15 +119,21 @@ def Scrap_ruler(LinkDri):
 
                 try: 
 
-                    Numero_deFila= Content_table.find_element(By.CSS_SELECTOR,'td.textCenter:nth-child(1)').text.strip()
+                    Columna= finderCodes.find_elements(
+                        By.CSS_SELECTOR,'td'
+                    )
+
+                    Numero_deFila= Columna[0].text.strip()
 
                     if Numero_deFila == str(Rulacaze):  
 
-                        Find_code= Numero_deFila 
+                        Find_code= finderCodes 
 
                         break
 
-                except:  
+                except Exception as e:   
+
+                    print(e)
 
                     continue 
 
@@ -126,36 +143,37 @@ def Scrap_ruler(LinkDri):
 
                 print(f"sroll en busca de mas informacion")  
 
-                First_fallIndex= Content_table[-1].find_element(By.CSS_SELECTOR,'td.textCenter:nth-child(1)').text.strip() 
+                First_fallIndex= Content_table[-1].find_element(By.CSS_SELECTOR,'td').text.strip() 
 
                 LinkDri.execute_script(
                     """
-                    arguments[0].scrollTop +=1500;
+                    arguments[0].scrollTop +=350;
                     """,HandScrolMarts
-                ) 
+                )  
 
-                sleep(13) 
+                sleep(10)
 
                 New_Content_table=  WebDriverWait(LinkDri, timeout=5).until( 
                 ExCont.presence_of_all_elements_located((By. CSS_SELECTOR,'tbody tr.ng-star-inserted'))
                 ) 
 
-                Second_fallIndex= New_Content_table[-1].find_element(By.CSS_SELECTOR,'td.textCenter:nth-child(1)').text.strip() 
+                Second_fallIndex= New_Content_table[-1].find_element(By.CSS_SELECTOR,'td').text.strip() 
 
                 if First_fallIndex == Second_fallIndex: 
 
-                    print(f"no existen resultados") 
+                    print(f"no existen resultados")  
+
+                    descargar_codice(LinkDri)
+                    Ruler_xel() 
 
                     exit()
 
         # ingreso a modulo editar  
 
-        print(f"resultado {Find_code} encontrado")
+        print(f"resultado {Rulacaze} encontrado")
 
-        OptionsAcccest= WebDriverWait(Find_code, timeout=7).until(
-            ExCont.element_to_be_clickable((By.CSS_SELECTOR,'a#opcionesV2'))
-        ) 
-
+        OptionsAcccest= Find_code.find_element(By.CSS_SELECTOR,'a#opcionesV2')
+        
         LinkDri.execute_script(
             """
             arguments[0].click();
@@ -167,7 +185,7 @@ def Scrap_ruler(LinkDri):
             ExCont.element_to_be_clickable((By. CSS_SELECTOR,'button#boton-Editar'))
         ) 
 
-        LinkDri.execute_srcipt( 
+        LinkDri.execute_script( 
             """
             arguments[0].click();
             """,EditModulo
@@ -176,90 +194,176 @@ def Scrap_ruler(LinkDri):
 
         Cordmodulo= WebDriverWait(LinkDri, timeout=5).until( 
             ExCont.presence_of_element_located((By. XPATH,"//span[contains(text(),'Detalle de Producto/Servicio')]"))
-        ) 
+        )  
 
-        if Cordmodulo:  
+        def selector_Safetext(by, selector, attr=None): 
 
-            #Codigo sku
-            ProdSku= WebDriverWait(LinkDri,timeout=5).until(
-                ExCont.presence_of_element_located((By.CSS_SELECTOR,'#numero_hcodigo-select_react-cc0ept2er input.ant-input'))
-            ).get_attribute("value")
-             
-            #Descripcio producto
-            ProdDesc= WebDriverWait(LinkDri, timeout=5).until( 
-                ExCont.presence_of_element_located((By.CSS_SELECTOR,'#numero_hdescripcion-select_react-iizi9jkeh input.ant-input'))
-            ).get_attribute("value") 
+            try:  
 
-            #Unidad de medida Prod 
-            ProdUnit= WebDriverWait(LinkDri, timeout=5).until(
-                ExCont.presence_of_element_located((By.CSS_SELECTOR,'#unidadMedida .ant-select-selection-item')) 
-            ).text
+                Elemetor= WebDriverWait(LinkDri, timeout=20).until( 
+                    ExCont.presence_of_element_located((by, selector))
+                ) 
 
-            #Clasificacion del producto 
-            ProdClasifi= WebDriverWait(LinkDri,timeout=5).until( 
-                ExCont.presence_of_element_located((By.CSS_SELECTOR ,'#inventarioClasificacion .ant-select-selection-item'))
-            ).text
+                if attr: 
+                    return Elemetor.get_attribute(attr) 
+                
+                return Elemetor.text.strip()
+
+            except Exception as e:   
+
+                print(f"error {e} con scrap de codigo N {Rulacaze}")
+                return ""
 
 
-            #Grupo de inventario 
-            ProInvgrup= WebDriverWait(LinkDri, timeout=5).until(
-                ExCont.presence_of_element_located((By.CSS_SELECTOR,'#tree_tree_-rc1yzbmh4 nz-tree-select .ant-select-selection-item'))
-            ).text
+        if Cordmodulo:    
 
-            #porcentaje de iva    
-            ProdIva= WebDriverWait(LinkDri, timeout=5).until( 
-                ExCont.presence_of_element_located((By.CSS_SELECTOR,'#porcentajeIva .ant-select-selection-item'))
-            ).text
+            MaxCraps=2 
 
-            #Contabilizacion del producto
-            ProdCont= WebDriverWait(LinkDri, timeout=5).until(
-                ExCont.presence_of_element_located((By.CSS_SELECTOR,'#contabilizacion .ant-select-selection-item'))
-            ).text
+            Intend_crap=0
+
+            while Intend_crap < MaxCraps: 
+
+                #Codigo sku
+                ProdSku= selector_Safetext(
+                    By.CSS_SELECTOR,'div[id^="numero_hcodigo-select_react"] input.ant-input', 
+                    "value"
+                ) 
+
+                if ProdSku == "": 
+
+                    ProdSku="Null/value"
+                
+                #Descripcio producto
+                ProdDesc= selector_Safetext( 
+                    By.CSS_SELECTOR,'div[id^="numero_hdescripcion-select_react"] input.ant-input',
+                    "value"
+                )  
+                if ProdDesc == "": 
+
+                    ProdDesc="Null/value"
+
+                #Unidad de medida Prod 
+                ProdUnit= selector_Safetext(
+                    By.CSS_SELECTOR,'#unidadMedida nz-select-item'
+                ) 
+                if ProdUnit == "": 
+
+                    ProdUnit="Null/value"
+
+                #Clasificacion del producto 
+                ProdClasifi= selector_Safetext(
+                    By.CSS_SELECTOR ,'#inventarioClasificacion nz-select-item'
+                )
+                if ProdClasifi == "": 
+
+                    ProdClasifi="Null/value"
+
+                #Grupo de inventario 
+                ProInvgrup= selector_Safetext( 
+                    By.CSS_SELECTOR,'wo-tree-select nz-tree-select .ant-select-selection-item'
+                )
+                if ProInvgrup == "": 
+
+                    ProInvgrup="Null/value"
+
+                #porcentaje de iva    
+                ProdIva= selector_Safetext(
+                    By.CSS_SELECTOR,'#porcentajeIva nz-select-item'
+                ) 
+                if ProdIva == "": 
+
+                    ProdIva="Null/value"
+
+                #Contabilizacion del producto
+                ProdCont= selector_Safetext(
+                    By.CSS_SELECTOR,'#contabilizacion nz-select-item'
+                )
+                if ProdCont == "": 
+
+                    ProdCont="Null/value"    
+
+                #abrir menu para mas datos 
+
+                MenuDatosxt= WebDriverWait(LinkDri, timeout=5).until( 
+                    ExCont.element_to_be_clickable((By.XPATH,"//nz-collapse-panel[.//span[contains(@class,'titulo__encabezado') and normalize-space(.)='Datos Personalizados']]//div[@role='button' and contains(@class,'ant-collapse-header')]"))
+                ) 
+
+                LinkDri.execute_script(
+                    """
+                    arguments[0].click();
+                    """,MenuDatosxt
+                )  
+
+                #marca de producto
+                ProdMarca= selector_Safetext( 
+                    By.XPATH,'//label[contains(.,"MARCA")]/ancestor::nz-form-item//input', 
+                    "value"
+                ) 
+                if ProdMarca == "": 
+                    ProdMarca="Null/value"
+
+
+                #referencia de producto
+                prodReferencia= selector_Safetext(
+                    By.XPATH,'//label[contains(.,"REFERENCIA")]/ancestor::nz-form-item//input', 
+                    "value"
+                )  
+                if prodReferencia == "": 
+                    prodReferencia="Null/value"
+
+
+                CompScrap=[ 
+                    ProdSku,
+                    ProdDesc, 
+                    ProdUnit,
+                    ProdClasifi, 
+                    ProInvgrup,
+                    ProdIva, 
+                    ProdCont, 
+                ] 
+
+                if all(Contenido != "" and Contenido !="Null/value" for Contenido in CompScrap):  
+
+                    print(f"Datos de indice {Rulacaze} cargados correctamente") 
+                    break  
+
+                Intend_crap+=1 
+
+                sleep(2)
+
+                print(f"Error en carga reintentando") 
+
+                if Intend_crap >= MaxCraps: 
+
+                    print(f"falla en scrap datos de codigo incompletos") 
+                    break 
+
+               
+
+            InDex_memo_ram[Rulacaze]= { 
+                "Indice":Rulacaze,
+                "sku": ProdSku,
+                "Descripcion": ProdDesc,
+                "Unit_Med": ProdUnit,
+                "Clasificacion": ProdClasifi,
+                "Grup_Inv": ProInvgrup,
+                "IVA": ProdIva,
+                "Contabilizacion": ProdCont,
+                "Marca":ProdMarca,
+                "Referencia": prodReferencia
+            } 
+
+            print(f"Registro {Rulacaze} guardado")  
+
             
-            #abrir menu para mas datos 
-
-            MenuDatosxt= WebDriverWait(LinkDri, timeout=5).until( 
-                ExCont.element_to_be_clickable((By.XPATH,"//nz-collapse-panel[.//span[contains(@class,'titulo__encabezado') and normalize-space(.)='Datos Personalizados']]//div[@role='button' and contains(@class,'ant-collapse-header')]"))
-            ) 
-
-            LinkDri.execute_script(
-                """
-                arguments[0].click();
-                """,MenuDatosxt
-            )  
-
-            #marca de producto
-            ProdMarca= WebDriverWait(LinkDri, timeout=5).until( 
-                ExCont.presence_of_element_located((By.CSS_SELECTOR,'div#numero_htextoPrueba-select_react-sjuomz4q5 input.ant-input'))
-            ).get_attribute("value") 
-
-            #referencia de producto
-            prodReferencia= WebDriverWait(LinkDri, timeout=5).until(
-                ExCont.presence_of_element_located((By.CSS_SELECTOR,'div#numero_htextoPrueba-select_react-sjuomz4q5 input.ant-input'))
-            ).get_attribute("value") 
-
-            Item= ProdsSport(
-            sku= ProdSku,
-            Descripcion= ProdDesc,
-            Unit_Med= ProdUnit,
-            Clasificacion= ProdClasifi,
-            Grup_Inv= ProInvgrup,
-            IVA= ProdIva,
-            Contabilizacion= ProdCont,
-            Marca= ProdMarca,
-            Referencia= prodReferencia) 
-
-            InDex_memo_ram.append(Item)  
-
-            Ruler_xel()
 
         Lookback= WebDriverWait(LinkDri, timeout=5).until( 
-            ExCont.element_to_be_clickable((By.CSS_SELECTOR,'div[role="tab"][aria-controls="nz-tabs-0-tab-2"]'))
+            ExCont.element_to_be_clickable((By.XPATH,'//div[contains(@class,"tab-header") and contains(.,"Gestión de Productos y Servicios")]' ))
         ) 
 
         LinkDri.execute_script(
             """ 
-            arguments[0].click;
+            arguments[0].click();
             """,Lookback
         ) 
 
@@ -267,40 +371,150 @@ def Scrap_ruler(LinkDri):
             ExCont.presence_of_element_located((By.CSS_SELECTOR,'tbody tr.ng-star-inserted'))
         ) 
 
-        sleep(1) 
-
         Rulacaze+=1 
 
-def Ruler_xel(): 
+ 
+def descargar_codice(LinkDri):  
 
-    Stix= Maker.DataFrame( 
+    FolderDown= Path.home() / "Downloads" 
 
-        InDex_memo_ram, 
+    Forderfate= Path(r"C:\Users\AUXSISTEMAS\Desktop\selenium pruebas\Execel_inventarios\Plantilla de comparacion") 
 
-        columns=[ 
-            "Codigo", 
-            "Descripcion",
-            "unidad de medida",
-            "Clasificacion",
-            "Grupo Inventario", 
-            "%Iva",
-            "Contabilizacion",
-            "Marca",
-            "Referencia",
-        ] 
-    )  
+    Valar= WebDriverWait(LinkDri, timeout=10).until( 
+        ExCont.element_to_be_clickable((By.XPATH,'//*[@id="paneTabs"]/app-lista-inventarios/div/app-boton-exportar/button'))
+    ).click() 
+
+    print("Download element")
+    
+    while True:  
+
+        Arch_Temp= list(FolderDown.glob("*,crdownload")) 
+
+        if not Arch_Temp: 
+            break
+            
+        time.sleep(1) 
+
+    print("Full download")
+
+    XlsCRM= list(FolderDown.glob("*.xlsx")) 
+
+    if not XlsCRM: 
+
+        raise FileNotFoundError( 
+            "Archivo no econtrado"
+        )
+
+    Ultima_XlsCRM= max(XlsCRM, key=lambda x: x.stat().st_mtime)
+
+    FinalFate= Forderfate/ Ultima_XlsCRM.name
+
+    limpiarNido() 
+
+    shutil.move( 
+        str(Ultima_XlsCRM), 
+        str(FinalFate)
+    )
+
+    print("Archivo transferido")
+
+def limpiarNido(): 
+
+    Folder= Path(r'C:\Users\AUXSISTEMAS\Desktop\selenium pruebas\Execel_inventarios\Plantilla de comparacion')
+
+    for info in Folder.iterdir(): 
+        try: 
+
+            if info.is_file():  
+
+                info.unlink() 
+            
+            elif info.is_dir():
+                os.rmdir(info)
 
 
-    Fecha=datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+        except Exception as e: 
 
-    # Evitar escapes en string de Windows: usar raw string + format o pathlib/os
-    Rute = r'C:\Users\AUXSISTEMAS\Desktop\selenium pruebas\Execel_inventarios\Inventario_Actual_{}'.format(Fecha) + '.xlsx'
+            print(f"falla en limpieza {e}") 
+    print("carpeta limpia") 
 
+def invocador(): 
+
+    Fold2= Path(r"C:\Users\AUXSISTEMAS\Desktop\selenium pruebas\Execel_inventarios\Plantilla de comparacion")
+
+    CompXls= list(Fold2.glob("*.xlsx")) 
+
+    if not CompXls: 
+
+        raise FileNotFoundError("carpeta vacia") 
+    
+    AcrhivoComp= max(
+        CompXls, 
+        key=lambda x: x.stat().st_mtime
+    ) 
+
+    return AcrhivoComp
+
+
+
+
+def Ruler_xel():   
+
+
+    Crm_excel= Maker.read_excel(invocador()) 
+
+    for item in InDex_memo_ram.values(): 
+
+        PrimarCode= item["sku"]
+
+        FilaCRMXLS= Crm_excel[Crm_excel["Código"]==PrimarCode] 
+
+        if FilaCRMXLS.empty: 
+            continue
+        
+        FilaCRMXLS= FilaCRMXLS.iloc[0]
+
+        Alejandria={ 
+            "Descripcion": "Descripción",
+                "Unit_Med": "Unidad Medida",
+                "Clasificacion": "Clasificacion",
+                "Grup_Inv": "Grupo Inventario",
+                "IVA": "Valor IVA",
+                "Contabilizacion": "Contabilizacion",
+                "Marca": "Encab: Personalizado 1",
+                "Referencia": "Encab: Personalizado 2"
+        } 
+
+        for DatoDic, DatoCrm in Alejandria.items(): 
+
+            Valor_iterDicc= item[DatoDic] 
+
+            if Valor_iterDicc in["",None,"Null/value"]: 
+
+                Valor_IterCMR=FilaCRMXLS[DatoCrm] 
+
+                if Maker.notna(Valor_IterCMR):
+                    
+                    item[DatoDic]= str(Valor_IterCMR)
+            
+ # convertir diccionario a dataframe
+    Stix = Maker.DataFrame(InDex_memo_ram.values())
+
+    # ordenar por el indice del CRM
+    Stix = Stix.sort_values(by="Indice")
+
+    # generar fecha
+    Fecha = datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p")
+
+    # ruta final
+    Rute = rf'C:\Users\AUXSISTEMAS\Desktop\selenium pruebas\Execel_inventarios\Inventario_Actual_{Fecha}.xlsx'
+
+    # generar excel
     Stix.to_excel(
-        Rute, 
-        index=False, 
+        Rute,
+        index=False,
         engine="openpyxl"
-    )            
+    )
 
 
 
