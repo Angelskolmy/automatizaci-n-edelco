@@ -5,8 +5,9 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait 
 from selenium.webdriver.support import expected_conditions as ExCont
 from time import sleep   
-from selenium.common.exceptions import ElementClickInterceptedException  
-from Master_mod import ProdsSport 
+from selenium.common.exceptions import ElementClickInterceptedException   
+from selenium.common.exceptions import StaleElementReferenceException
+from Modelos.Master_mod import ProdsSport 
 import pandas as Maker 
 import openpyxl  
 import os 
@@ -14,7 +15,8 @@ from datetime import datetime
 from selenium.webdriver.chrome.options import Options
 from pathlib import Path 
 import shutil
-import time
+import time 
+import unicodedata
 
 
 InDex_memo_ram={}
@@ -129,7 +131,12 @@ def Scrap_ruler(LinkDri):
 
                         Find_code= finderCodes 
 
-                        break
+                        break 
+
+                except StaleElementReferenceException:
+
+                    print("Angular reconstruyó la tabla")
+                    break
 
                 except Exception as e:   
 
@@ -141,9 +148,20 @@ def Scrap_ruler(LinkDri):
          
             if Find_code is None:  
 
-                print(f"sroll en busca de mas informacion")  
+                print(f"sroll en busca de mas informacion")   
 
-                First_fallIndex= Content_table[-1].find_element(By.CSS_SELECTOR,'td').text.strip() 
+                try: 
+
+                    Content_table= WebDriverWait(LinkDri, timeout=5).until( 
+                        ExCont.presence_of_all_elements_located((By. CSS_SELECTOR,'tbody tr.ng-star-inserted'))
+                    )  
+
+                    First_fallIndex= Content_table[-1].find_element(By.CSS_SELECTOR,'td').text.strip()  
+
+                except StaleElementReferenceException:
+
+                    print("Tabla actualizada por Angular")
+                    continue
 
                 LinkDri.execute_script(
                     """
@@ -166,7 +184,7 @@ def Scrap_ruler(LinkDri):
                     descargar_codice(LinkDri)
                     Ruler_xel() 
 
-                    exit()
+                    return
 
         # ingreso a modulo editar  
 
@@ -367,6 +385,8 @@ def Scrap_ruler(LinkDri):
             """,Lookback
         ) 
 
+        sleep(2)
+
         WebDriverWait(LinkDri, timeout=8).until( 
             ExCont.presence_of_element_located((By.CSS_SELECTOR,'tbody tr.ng-star-inserted'))
         ) 
@@ -375,47 +395,42 @@ def Scrap_ruler(LinkDri):
 
  
 def descargar_codice(LinkDri):  
+    FolderDown = Path.home() / "Downloads"
+    Forderfate = Path(r"C:\Users\AUXSISTEMAS\Desktop\selenium pruebas\Execel_inventarios\Plantilla de comparacion")
 
-    FolderDown= Path.home() / "Downloads" 
+    # lista de xlsx antes de la exportación
+    before = set(FolderDown.glob("*.xlsx"))
 
-    Forderfate= Path(r"C:\Users\AUXSISTEMAS\Desktop\selenium pruebas\Execel_inventarios\Plantilla de comparacion") 
-
-    Valar= WebDriverWait(LinkDri, timeout=10).until( 
+    # click export
+    WebDriverWait(LinkDri, timeout=10).until(
         ExCont.element_to_be_clickable((By.XPATH,'//*[@id="paneTabs"]/app-lista-inventarios/div/app-boton-exportar/button'))
-    ).click() 
+    ).click()
 
     print("Download element")
-    
-    while True:  
 
-        Arch_Temp= list(FolderDown.glob("*,crdownload")) 
-
-        if not Arch_Temp: 
+    # esperar a que aparezca un .crdownload (opcional)
+    start = time.time()
+    timeout = 60
+    while time.time() - start < timeout:
+        if list(FolderDown.glob("*.crdownload")):
             break
-            
-        time.sleep(1) 
+        time.sleep(0.5)
 
-    print("Full download")
+    # esperar un nuevo .xlsx (comparando con la lista previa)
+    start = time.time()
+    while time.time() - start < timeout:
+        XlsCRM = list(FolderDown.glob("*.xlsx"))
+        new = [f for f in XlsCRM if f not in before]
+        if new:
+            Ultima_XlsCRM = max(new, key=lambda x: x.stat().st_mtime)
+            break
+        time.sleep(1)
+    else:
+        raise FileNotFoundError("Archivo no econtrado (timeout)")
 
-    XlsCRM= list(FolderDown.glob("*.xlsx")) 
-
-    if not XlsCRM: 
-
-        raise FileNotFoundError( 
-            "Archivo no econtrado"
-        )
-
-    Ultima_XlsCRM= max(XlsCRM, key=lambda x: x.stat().st_mtime)
-
-    FinalFate= Forderfate/ Ultima_XlsCRM.name
-
-    limpiarNido() 
-
-    shutil.move( 
-        str(Ultima_XlsCRM), 
-        str(FinalFate)
-    )
-
+    FinalFate = Forderfate / Ultima_XlsCRM.name
+    limpiarNido()
+    shutil.move(str(Ultima_XlsCRM), str(FinalFate))
     print("Archivo transferido")
 
 def limpiarNido(): 
@@ -458,10 +473,14 @@ def invocador():
 
 
 
-def Ruler_xel():   
+def Ruler_xel():    
 
-
-    Crm_excel= Maker.read_excel(invocador()) 
+    Crm_excel= Maker.read_excel(invocador())  
+   
+    Crm_excel.columns = [
+    unicodedata.normalize("NFKC", str(c)).strip()
+    for c in Crm_excel.columns
+]
 
     for item in InDex_memo_ram.values(): 
 

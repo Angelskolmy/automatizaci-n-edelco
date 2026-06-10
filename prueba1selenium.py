@@ -5,90 +5,99 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait 
 from selenium.webdriver.support import expected_conditions as ExCont
 from time import sleep  
-from function_sel import *
+from function_sel import * 
 
-#establcer servicio y crear objeto de driver de navegador seleccionado
-ValarDo= Service(ChromeDriverManager().install()) 
-linkDri= webdriver.Chrome(service=ValarDo) 
+def Scrap_init():
 
-#establecer conexion con pagina web mediante metodo get de werbdriver
-linkDri.get('https://www.worldoffice.cloud/#/index') 
+    #establcer servicio y crear objeto de driver de navegador seleccionado
+    ValarDo= Service(ChromeDriverManager().install()) 
+    linkDri= webdriver.Chrome(service=ValarDo) 
 
-#busqueda de elemento mediande metodo find element de driver/ metodo click para interactuar|
-sesionGen= linkDri.find_element(By.CLASS_NAME,value='boton').click()  
- 
-UserInput=WebDriverWait(linkDri, timeout=10).until(
-    ExCont.element_to_be_clickable((By.CSS_SELECTOR, 'input#usuario'))
-).send_keys("asesor6@loelectrico.co") 
+    #establecer conexion con pagina web mediante metodo get de werbdriver
+    linkDri.get('https://www.worldoffice.cloud/#/index') 
 
-UserCont=WebDriverWait(linkDri, timeout=8).until( 
-    ExCont.element_to_be_clickable((By.CSS_SELECTOR, 'input.ant-input[type="password"]'))
-).send_keys("GAov+0716")
- 
-init_session= WebDriverWait(linkDri, timeout=12).until(
-    ExCont.element_to_be_clickable((By. CSS_SELECTOR, 'div[style= "width: 100%; display: flex; justify-content: center; align-items: center;"]  button.boton[type="submit"]'
-    ))
-).click() 
+    #busqueda de elemento mediande metodo find element de driver/ metodo click para interactuar|
+    sesionGen= linkDri.find_element(By.CLASS_NAME,value='boton').click()  
+    
+    UserInput=WebDriverWait(linkDri, timeout=10).until(
+        ExCont.element_to_be_clickable((By.CSS_SELECTOR, 'input#usuario'))
+    ).send_keys("asesor6@loelectrico.co") 
 
-linkDri.maximize_window()
- 
-Busqueda= WebDriverWait(linkDri, timeout=10).until(
-    ExCont.visibility_of_element_located((By. CSS_SELECTOR,'input#inputBuscar[type="text"]' ))
-).send_keys("Gestion de productos y servicios")
+    UserCont=WebDriverWait(linkDri, timeout=8).until( 
+        ExCont.element_to_be_clickable((By.CSS_SELECTOR, 'input.ant-input[type="password"]'))
+    ).send_keys("GAov+0716")
+    
+    init_session= WebDriverWait(linkDri, timeout=12).until(
+        ExCont.element_to_be_clickable((By. CSS_SELECTOR, 'div[style= "width: 100%; display: flex; justify-content: center; align-items: center;"]  button.boton[type="submit"]'
+        ))
+    ).click() 
 
-enterModProd= WebDriverWait(linkDri, timeout=20).until(
-    ExCont.element_to_be_clickable((By. CSS_SELECTOR, 'mat-option#mat-option-2'))
-).click()
+    linkDri.maximize_window()
+    
+    Busqueda= WebDriverWait(linkDri, timeout=10).until(
+        ExCont.visibility_of_element_located((By. CSS_SELECTOR,'input#inputBuscar[type="text"]' ))
+    ).send_keys("Gestion de productos y servicios")
 
-findlocker="SI" 
-regulus=0
+    enterModProd= WebDriverWait(linkDri, timeout=20).until(
+        ExCont.element_to_be_clickable((By. CSS_SELECTOR, 'mat-option#mat-option-2'))
+    ).click()
 
-while findlocker == "SI":
+    findlocker="SI" 
+    regulus=0
 
-    inpForm= str(input("ingrerese el grupo a almacenar: ")) 
+    while findlocker == "SI":
 
-    if regulus>0: 
+        inpForm= str(input("ingrerese el grupo a almacenar: ")) 
 
-        Brujula= By.CSS_SELECTOR,'div.contTheme.panel_colapsar > a'
-        CardexDom= By.CSS_SELECTOR,'div.ng-star-inserted input#pruebaTextField-'
-        CordsDom= By.CSS_SELECTOR,'div.colGrid6.flex.contenedorBotonesListadoConsulta button.botonesListadoConsulta.botonBackgroundColor.flex'
+        if regulus>0: 
 
-        desplegar(linkDri, Brujula)
-        Cleaner_input(linkDri, CardexDom, inpForm,) 
+            Brujula= By.CSS_SELECTOR,'div.contTheme.panel_colapsar > a'
+            CardexDom= By.CSS_SELECTOR,'div.ng-star-inserted input#pruebaTextField-'
+            CordsDom= By.CSS_SELECTOR,'div.colGrid6.flex.contenedorBotonesListadoConsulta button.botonesListadoConsulta.botonBackgroundColor.flex'
 
-        for x in range (0,2,1): 
-            Malphite_Click(linkDri, CordsDom)
+            desplegar(linkDri, Brujula)
+            Cleaner_input(linkDri, CardexDom, inpForm,) 
 
-    else: 
+            for x in range (0,2,1): 
+                Malphite_Click(linkDri, CordsDom)
 
-        ingresoGrup= WebDriverWait(linkDri, timeout=10).until( 
-            ExCont.element_to_be_clickable((By.CSS_SELECTOR, 'div.ng-star-inserted input#pruebaTextField-'))
-        ).send_keys(inpForm) 
+        else: 
 
-        for i in range(0,2,1):
-            actionIng= WebDriverWait(linkDri, timeout=10).until(
-                ExCont.element_to_be_clickable((By. CSS_SELECTOR, 'div.colGrid6.flex.contenedorBotonesListadoConsulta button.botonesListadoConsulta.botonBackgroundColor.flex'))
-            ).click()
+            ingresoGrup= WebDriverWait(linkDri, timeout=10).until( 
+                ExCont.element_to_be_clickable((By.CSS_SELECTOR, 'div.ng-star-inserted input#pruebaTextField-'))
+            ).send_keys(inpForm) 
 
-    try:
-        content_querry= WebDriverWait(linkDri, timeout=12).until(
-            ExCont.presence_of_all_elements_located((By.CSS_SELECTOR, 'tr.ng-star-inserted td.textCenter')) 
-        ) 
-    except: 
-        content_querry=[]
+            for i in range(0,2,1):
+                actionIng= WebDriverWait(linkDri, timeout=10).until(
+                    ExCont.element_to_be_clickable((By. CSS_SELECTOR, 'div.colGrid6.flex.contenedorBotonesListadoConsulta button.botonesListadoConsulta.botonBackgroundColor.flex'))
+                ).click()
 
-    if len(content_querry)>0:   
-        #---------funcion scrap--------
-        Scrap_ruler(linkDri) 
-        break
-    else:  
-        regulus+=1 
-        print(f"no exiten resultados para {inpForm}")
-        findlocker= str(input("Reintentar Si - NO ")).upper() 
+        try:
+            content_querry= WebDriverWait(linkDri, timeout=12).until(
+                ExCont.presence_of_all_elements_located((By.CSS_SELECTOR, 'tr.ng-star-inserted td.textCenter')) 
+            ) 
+        except: 
+            content_querry=[]
 
-        while findlocker!= "SI" and findlocker!= "NO": 
-            print(f"OPCION INVALIDA") 
+        if len(content_querry)>0:   
+            #---------funcion scrap--------
+            Scrap_ruler(linkDri) 
+            break
+        else:  
+            regulus+=1 
+            print(f"no exiten resultados para {inpForm}")
             findlocker= str(input("Reintentar Si - NO ")).upper() 
 
-print("cunt")
-sleep(20) 
+            while findlocker!= "SI" and findlocker!= "NO": 
+                print(f"OPCION INVALIDA") 
+                findlocker= str(input("Reintentar Si - NO ")).upper()  
+    
+    sleep(20) 
+
+    try:
+        linkDri.quit()
+    except Exception:
+        pass
+    return
+
+    

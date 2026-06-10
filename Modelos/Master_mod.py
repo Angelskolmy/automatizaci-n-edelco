@@ -7,7 +7,7 @@ class ProdsSport():
         self.Descripcion=Descripcion
 
         self.Unit_Med=Unit_Med
-
+ 
         self.Clasificacion=Clasificacion
 
         self.Grup_Inv=Grup_Inv
