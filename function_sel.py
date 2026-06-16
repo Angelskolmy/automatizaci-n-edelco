@@ -4,7 +4,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service  
 from selenium.webdriver.support.ui import WebDriverWait 
 from selenium.webdriver.support import expected_conditions as ExCont
-from time import sleep   
+from time import sleep
 from selenium.common.exceptions import ElementClickInterceptedException   
 from selenium.common.exceptions import StaleElementReferenceException
 from Modelos.Master_mod import ProdsSport 
@@ -18,7 +18,7 @@ import shutil
 import time 
 import unicodedata 
 from Modelos.ConexionDb import ConexionDB_Automat_Edelcosas
-from prueba1selenium import *
+
 
 InDex_memo_ram={}
 
@@ -90,13 +90,32 @@ def desplegar (linkDri, Brujula):
             """
         )
 
-def Scrap_ruler(LinkDri):
+def Scrap_ruler(LinkDri,inpForm):
 
     freeze= WebDriverWait(LinkDri,timeout=20) 
 
-    Rulacaze=1 
+    Rulacaze=1  
 
-    while True:  
+    Time_reset = time.time()
+
+    Interval= 25 * 60
+
+    while True:      
+
+        if time.time() - Time_reset >= Interval: 
+
+            print("Recargando CRM") 
+
+            Reborn_scrap( 
+                LinkDri,
+                inpForm, 
+                Rulacaze
+            )
+
+            # Reiniciar el contador para que el evento vuelva a dispararse
+            # solo después de otros `Interval` segundos
+            Time_reset = time.time()
+            print(f"Timer reiniciado tras Reborn_scrap (esperando {Interval}s)")
 
         HandScrolMarts = WebDriverWait( LinkDri, timeout=10).until(
 
@@ -908,5 +927,107 @@ def sincronicle_DataBase():
             else: 
                 print(f"item {codigo_SKu} sin cambios aparentes")
 
-        
+def Reborn_scrap (LinkDri, inpForm, Rulacaze): 
+
+    LinkDri.refresh() 
+
+    sleep(10) 
+
+    Volver_resultados(LinkDri)
+
+    Re_busqueda(LinkDri,inpForm) 
+
+    Cardinal_indice(LinkDri,Rulacaze) 
+
+    print(f"Estado recuperado. Indice{Rulacaze}")
+
     
+def Volver_resultados (LinkDri): 
+
+    Modulo = WebDriverWait(LinkDri, timeout=12).until(
+        ExCont.element_to_be_clickable((By.XPATH, '//div[contains(@class,"tab-header") and contains(.,"Gestión de Productos y Servicios")]'))
+    )
+
+    LinkDri.execute_script(
+        """
+            arguments[0].click();
+        """,
+        Modulo,
+    ) 
+
+    sleep(3)
+
+def Re_busqueda(LinkDri,inpForm): 
+
+    print("buscando nuevamente") 
+    Busqueda = WebDriverWait(LinkDri, timeout=12).until(
+        ExCont.presence_of_element_located((By.CSS_SELECTOR, "div.ng-star-inserted input#pruebaTextField-"))
+    )
+
+    Busqueda.clear()
+    Busqueda.send_keys(inpForm)
+
+    Action = WebDriverWait(LinkDri, timeout=12).until(
+        ExCont.element_to_be_clickable((By.CSS_SELECTOR, 'div.colGrid6.flex.contenedorBotonesListadoConsulta button.botonesListadoConsulta.botonBackgroundColor.flex'))
+    )
+
+    for i in range(0, 2, 1):
+        LinkDri.execute_script(
+            """
+            arguments[0].click();
+            """,
+            Action,
+        )
+
+        WebDriverWait( LinkDri, timeout=20).until(
+            ExCont.presence_of_element_located(
+            (By.CSS_SELECTOR,'tbody tr.ng-star-inserted'))) 
+        
+        print(f"Resultados restaurados")
+
+
+def Cardinal_indice(LinkDri,Rulacaze): 
+
+    HandScrolMarts = WebDriverWait( LinkDri, timeout=10).until(
+        ExCont.presence_of_element_located((
+            By.CSS_SELECTOR,
+            'cdk-virtual-scroll-viewport'
+        )))
+    
+    while True: 
+
+        filas = LinkDri.find_elements(
+            By.CSS_SELECTOR,
+            'tbody tr.ng-star-inserted'
+        )
+
+        for fila in filas:
+
+            try:
+
+                numero = fila.find_elements(
+                    By.CSS_SELECTOR,
+                    'td'
+                )[0].text.strip()
+
+                if numero == str(Rulacaze):
+
+                    print(
+                        f"Índice {Rulacaze} localizado"
+                    )
+
+                    return
+
+            except:
+
+                continue
+
+        LinkDri.execute_script(
+            """
+            arguments[0].scrollTop += 350;
+            """,
+            HandScrolMarts
+        )
+
+        sleep(1)
+        
