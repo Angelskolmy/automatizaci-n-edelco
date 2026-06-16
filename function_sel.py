@@ -16,8 +16,9 @@ from selenium.webdriver.chrome.options import Options
 from pathlib import Path 
 import shutil
 import time 
-import unicodedata
-
+import unicodedata 
+from Modelos.ConexionDb import ConexionDB_Automat_Edelcosas
+from prueba1selenium import *
 
 InDex_memo_ram={}
 
@@ -471,7 +472,25 @@ def invocador():
     return AcrhivoComp
 
 
+def Invocador_ultima(): 
 
+    Ruta_inv= Path(r"C:\Users\AUXSISTEMAS\Desktop\selenium pruebas\Execel_inventarios") 
+
+    ArchivosInv= list( 
+        Ruta_inv.glob("Inventario_Actual_*.xlsx")
+    ) 
+
+    if not ArchivosInv: 
+        raise FileNotFoundError(
+            "sin inventarios de referencia"
+        )
+
+    Last_Alejandria= max(
+        ArchivosInv, 
+        key= lambda x: x.stat().st_mtime
+    ) 
+
+    return Maker.read_excel(Last_Alejandria)
 
 def Ruler_xel():    
 
@@ -534,13 +553,360 @@ def Ruler_xel():
         index=False,
         engine="openpyxl"
     )
+ 
+def normalizar_iva(valor):
+
+    return (
+        str(valor)
+        .replace("%", "")
+        .replace(" ", "")
+        .replace(".0", "")
+        .strip()
+    )
+
+def sincronicle_DataBase(): 
+
+    Referencia_INV= Invocador_ultima() 
+
+    AutoDB= ConexionDB_Automat_Edelcosas() 
+
+    if not AutoDB.LinkDb(): 
+        return
+    
+    Db_Marca= Maker.DataFrame (AutoDB.busqueda( 
+        "SELECT IdMarc, NombreMarc FROM marca WHERE EstadoMarc = '1'; "
+    ))
+
+    DB_grupoInv= Maker.DataFrame (AutoDB.busqueda( 
+        "SELECT IdGrupoinv, NombGrup  FROM  grupo_inventario WHERE Estado= '1'; "
+    ))
+
+    DB_Contabilizacion= Maker.DataFrame (AutoDB.busqueda( 
+        "SELECT IdCont, Grupo_cont FROM  contabilizacion WHERE Estado_Gcont= '1'"
+    ))
+
+    DB_Clasificacion= Maker.DataFrame (AutoDB.busqueda( 
+        "SELECT IdClasifi, NombClasificacion FROM clasificacio_item WHERE Estado_Clasific= '1'"
+    ))  
+
+    #Marcas comparacion ----------------------------------------------------------------|
+
+    Marcas_Actu= set(Db_Marca["NombreMarc"].astype(str).str.upper()) 
+
+    MarcasInv=(  
+        Referencia_INV["Marca"].dropna().astype(str).str.upper().unique()
+    ) 
+
+    for MrcActu in MarcasInv: 
+        
+        if MrcActu not in  Marcas_Actu: 
+
+            AutoDB.Alterar_Db( 
+                """
+                    INSERT INTO marca(NombreMarc) values(%s)
+                """, 
+                (MrcActu,)
+            )  
+
+            print(f"Nueva marca {MrcActu}") 
+
+    Db_Marca= Maker.DataFrame (AutoDB.busqueda( 
+     "SELECT IdMarc, NombreMarc FROM marca WHERE EstadoMarc = '1'; "
+    ))
+    #-------------------------------------------------------------------------------------|
+        
+    #Grupo de inventario comparacion ----------------------------------------------------------------|
+
+    GrupoInventario_actu= set(DB_grupoInv["NombGrup"].astype(str).str.upper()) 
+
+    GrupoInv=( 
+        Referencia_INV["Grup_Inv"].dropna().astype(str).str.upper().unique()
+    ) 
+
+    for GrupInvActu in GrupoInv: 
+
+        if GrupInvActu not in GrupoInventario_actu: 
+
+            AutoDB.Alterar_Db(
+
+                """
+                INSERT INTO grupo_inventario(NombGrup) VALUES (%s)
+                """, 
+                (GrupInvActu,)
+            ) 
+
+            print(f"nuevo grupo inventario {GrupInvActu}")
+
+    DB_grupoInv= Maker.DataFrame (AutoDB.busqueda( 
+        "SELECT IdGrupoinv, NombGrup FROM  grupo_inventario WHERE Estado= '1'; "
+    ))
+    #------------------------------------------------------------------------------------------------|
+
+    #Grupo de contabilizacion comparacion -----------------------------------------------------------| 
+
+    Contabilizacion_Actu= set(DB_Contabilizacion["Grupo_cont"].astype(str).str.upper()) 
+
+    ContabilizacionINV= (Referencia_INV["Contabilizacion"].dropna().astype(str).str.upper().unique() ) 
+
+    for ContaInvActu in ContabilizacionINV: 
+
+        if ContaInvActu not in Contabilizacion_Actu: 
+             
+             AutoDB.Alterar_Db(
+                 """
+                    INSERT INTO contabilizacion(Grupo_cont) VALUES (%s)
+                 """, 
+                 (ContaInvActu,)
+             ) 
+
+             print(f"nuevo grupo contable {ContaInvActu}") 
+
+    DB_Contabilizacion= Maker.DataFrame (AutoDB.busqueda( 
+        "SELECT IdCont, Grupo_cont FROM  contabilizacion WHERE Estado_Gcont= '1'"
+    ))
+    #------------------------------------------------------------------------------------------------|
+
+    #Clasificacion-----------------------------------------------------------------------------------|  
+
+    Clasificacion_Actu= set(DB_Clasificacion["NombClasificacion"].astype(str).str.upper()) 
+
+    ClasificacionINV=( 
+        Referencia_INV["Clasificacion"].dropna().astype(str).str.upper().unique()
+    ) 
+
+    for RefeINVActu in ClasificacionINV: 
+
+        if RefeINVActu not in Clasificacion_Actu: 
+
+            AutoDB.Alterar_Db( 
+                """
+                    INSERT INTO clasificacio_item(NombClasificacion) VALUES (%s) 
+                """,
+                (RefeINVActu,)
+            ) 
+
+            print(f"nueva clasificacion {RefeINVActu}") 
+
+    DB_Clasificacion= Maker.DataFrame (AutoDB.busqueda( 
+        "SELECT IdClasifi, NombClasificacion FROM clasificacio_item WHERE Estado_Clasific= '1'"
+    ))
+
+    #------------------------------------------------------------------------------------------------|  
 
 
 
+    # Igualar foraneas marcas -----------------------------------------------------------------------| 
+
+    Referencia_INV["Marca_Auxiliar"]=(
+        Referencia_INV["Marca"].astype(str).str.upper())
+    
+
+    Db_Marca["NombreMarc"]=( 
+        Db_Marca["NombreMarc"].astype(str).str.upper()
+    ) 
 
 
+    Referencia_INV= Referencia_INV.merge( 
+        Db_Marca, 
+        left_on= "Marca_Auxiliar",
+        right_on= "NombreMarc", 
+        how="left"
+    )  
+
+    Referencia_INV.rename( 
+        columns={"IdMarc":"Marca_ID"}, 
+        inplace=True
+    )
+
+    #------------------------------------------------------------------------------------------------|   
+
+    # Igualar foraneas Grupo inventario -------------------------------------------------------------|
+    
+    Referencia_INV["AuxGrup_Inv"]=(
+        Referencia_INV["Grup_Inv"].astype(str).str.upper())
+    
+
+    DB_grupoInv["NombGrup"]=( 
+        DB_grupoInv["NombGrup"].astype(str).str.upper()
+    ) 
 
 
+    Referencia_INV= Referencia_INV.merge( 
+        DB_grupoInv, 
+        left_on= "AuxGrup_Inv",
+        right_on= "NombGrup", 
+        how="left"
+    )  
+
+    Referencia_INV.rename( 
+        columns={"IdGrupoinv":"ID_GrupInv"}, 
+        inplace=True
+    )
+
+    #------------------------------------------------------------------------------------------------|
+
+    # Igualar foraneas contabilizacion --------------------------------------------------------------|
+
+    Referencia_INV["AuxContabilizacion"]=(
+        Referencia_INV["Contabilizacion"].astype(str).str.upper())
+    
+
+    DB_Contabilizacion["Grupo_cont"]=( 
+        DB_Contabilizacion["Grupo_cont"].astype(str).str.upper()
+    ) 
+
+
+    Referencia_INV= Referencia_INV.merge( 
+        DB_Contabilizacion, 
+        left_on= "AuxContabilizacion",
+        right_on= "Grupo_cont", 
+        how="left"
+    )  
+
+    Referencia_INV.rename( 
+        columns={"IdCont":"Contabilizacion_ID"}, 
+        inplace=True
+    )
+
+    #------------------------------------------------------------------------------------------------|
+
+
+    # Igualar foraneas clasificacion ----------------------------------------------------------------| 
+
+    Referencia_INV["AuxClasificacion"]=(
+        Referencia_INV["Clasificacion"].astype(str).str.upper())
+    
+
+    DB_Clasificacion["NombClasificacion"]=( 
+        DB_Clasificacion["NombClasificacion"].astype(str).str.upper()
+    ) 
+
+
+    Referencia_INV= Referencia_INV.merge( 
+        DB_Clasificacion, 
+        left_on= "AuxClasificacion",
+        right_on= "NombClasificacion", 
+        how="left"
+    )  
+
+    Referencia_INV.rename( 
+        columns={"IdClasifi":"Clasificacion_ID"}, 
+        inplace=True
+    )
+
+    #------------------------------------------------------------------------------------------------| 
+
+    Referencia_INV.drop(
+        columns=[
+            "Marca_Auxiliar",
+            "NombreMarc",
+            "AuxGrup_Inv",
+            "NombGrup",
+            "AuxContabilizacion",
+            "Grupo_cont",
+            "AuxClasificacion"
+        ],
+        inplace=True,
+        errors="ignore"
+    )
+
+    ItemsDB= Maker.DataFrame (AutoDB.busqueda( 
+       'SELECT * FROM itemlog where EstadoItem = "1" '
+    ))  
+
+    if ItemsDB.empty: 
+
+        SkuItemDb= {}
+
+    else: 
+        
+        SkuItemDb= (ItemsDB
+        .set_index("Sku_item")
+        .to_dict("index")
+        ) 
+
+
+    for _, Item_Fila_reigisto in Referencia_INV.iterrows(): 
+         
+        codigo_SKu= str(Item_Fila_reigisto["sku"]) 
+
+        if codigo_SKu not in SkuItemDb: 
+
+            AutoDB.Alterar_Db( 
+                """
+                INSERT INTO itemlog(
+                Sku_item,
+                DescItem,
+                Unidad_medida,
+                Iva,
+                Referencia,
+                IDmarcaIt,
+                IDgrupoIt,
+                IDcontabilizacion,
+                IDclasificacionIt
+                )
+                VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """, 
+                (codigo_SKu, 
+                Item_Fila_reigisto["Descripcion"], 
+                Item_Fila_reigisto["Unit_Med"], 
+                Item_Fila_reigisto["IVA"], 
+                Item_Fila_reigisto["Referencia"], 
+                Item_Fila_reigisto["Marca_ID"],
+                Item_Fila_reigisto["ID_GrupInv"],
+                Item_Fila_reigisto["Contabilizacion_ID"],
+                Item_Fila_reigisto["Clasificacion_ID"]
+                )
+            ) 
+
+            print(f"Trasladando item {codigo_SKu} a DB")
+
+        else: 
+
+            AlterItemDB= SkuItemDb[codigo_SKu] 
+
+            Alters=( 
+
+                str(AlterItemDB["DescItem"]) != str(Item_Fila_reigisto["Descripcion"])
+                or str(AlterItemDB["Unidad_medida"]) != str(Item_Fila_reigisto["Unit_Med"])  
+                or str(AlterItemDB["Iva"]) != normalizar_iva(Item_Fila_reigisto["IVA"])
+                or str(AlterItemDB["Referencia"]) != str(Item_Fila_reigisto["Referencia"])
+                or str(AlterItemDB["IDmarcaIt"]) != str(Item_Fila_reigisto["Marca_ID"]) 
+                or str(AlterItemDB["IDgrupoIt"]) != str(Item_Fila_reigisto["ID_GrupInv"])
+                or str(AlterItemDB["IDcontabilizacion"]) != str(Item_Fila_reigisto["Contabilizacion_ID"]) 
+                or str(AlterItemDB["IDclasificacionIt"]) != str(Item_Fila_reigisto["Clasificacion_ID"])
+            ) 
+
+            if Alters: 
+
+                AutoDB.Alterar_Db( 
+                    """"
+                    UPDATE itemlog SET  
+                    DescItem=%s,
+                    Unidad_medida=%s,
+                    Iva=%s,
+                    Referencia=%s,
+                    IDmarcaIt=%s,
+                    IDgrupoIt=%s,
+                    IDcontabilizacion=%s,
+                    IDclasificacionIt=%s
+
+                    WHERE Sku_item=%s
+                    """, 
+                    ( 
+                        Item_Fila_reigisto["Descripcion"], 
+                        Item_Fila_reigisto["Unit_Med"], 
+                        Item_Fila_reigisto["IVA"], 
+                        Item_Fila_reigisto["Referencia"], 
+                        Item_Fila_reigisto["Marca_ID"],
+                        Item_Fila_reigisto["ID_GrupInv"],
+                        Item_Fila_reigisto["Contabilizacion_ID"],
+                        Item_Fila_reigisto["Clasificacion_ID"], 
+                        codigo_SKu
+                    )
+                ) 
+            else: 
+                print(f"item {codigo_SKu} sin cambios aparentes")
 
         
     

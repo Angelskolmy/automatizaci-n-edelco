@@ -35,7 +35,7 @@ while True:
         Scrap_init()
 
     elif OpMenu== 2:  
-        print("archivo")
+        sincronicle_DataBase()
 
     elif OpMenu == 3:  
         print("edicion")

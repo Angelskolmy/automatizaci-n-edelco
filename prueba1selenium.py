@@ -100,4 +100,39 @@ def Scrap_init():
         pass
     return
 
+
+def Enter_Crm (): 
+
+     #establcer servicio y crear objeto de driver de navegador seleccionado
+    ValarDo= Service(ChromeDriverManager().install()) 
+    linkDri= webdriver.Chrome(service=ValarDo) 
+
+    #establecer conexion con pagina web mediante metodo get de werbdriver
+    linkDri.get('https://www.worldoffice.cloud/#/index') 
+
+    #busqueda de elemento mediande metodo find element de driver/ metodo click para interactuar|
+    sesionGen= linkDri.find_element(By.CLASS_NAME,value='boton').click()  
+    
+    UserInput=WebDriverWait(linkDri, timeout=10).until(
+        ExCont.element_to_be_clickable((By.CSS_SELECTOR, 'input#usuario'))
+    ).send_keys("asesor6@loelectrico.co") 
+
+    UserCont=WebDriverWait(linkDri, timeout=8).until( 
+        ExCont.element_to_be_clickable((By.CSS_SELECTOR, 'input.ant-input[type="password"]'))
+    ).send_keys("GAov+0716")
+    
+    init_session= WebDriverWait(linkDri, timeout=12).until(
+        ExCont.element_to_be_clickable((By. CSS_SELECTOR, 'div[style= "width: 100%; display: flex; justify-content: center; align-items: center;"]  button.boton[type="submit"]'
+        ))
+    ).click() 
+
+    linkDri.maximize_window() 
+
+    Busqueda= WebDriverWait(linkDri, timeout=10).until(
+        ExCont.visibility_of_element_located((By. CSS_SELECTOR,'input#inputBuscar[type="text"]' ))
+    ).send_keys("Gestion de productos y servicios")
+
+    enterModProd= WebDriverWait(linkDri, timeout=20).until(
+        ExCont.element_to_be_clickable((By. CSS_SELECTOR, 'mat-option#mat-option-2'))
+    ).click()
     
